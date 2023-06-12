@@ -27,16 +27,23 @@ I have been able to test everything in Remix VM same as in Metamask with the exc
 
 *********************************************************************************************************
 
-SUMMARY:
-1. Deploy WhitelistRegistry (this is where whitelisted addresses will go)
-2. Initialize, AddAdmins, AddManager, addCustomerToWhitelist for all customers.
+Description of the 3 contract files that are attached:
+TokenSale.sol - this will be the main contract we use for selling our tokens to buyer through a dApp on our website and using MetaMask.
+WhitelistRegistry.sol - this is a separate contract wherein we can load whitelisted addresses.  There is a boolean flag in TokenSale called "whitelistEnabled" that instructs the buyTokens operation in TokenSale on whether or not it should call over to this WhitelistRegistry contract to validate if the buyer is in the whitelist. The reason we did this was because after our whitelist sale is over, we may use the TokenSale in an ongoing basis to sell our tokens.
+MyNewMinter.sol - just a simple ERC-20 implementation to allow us to quickly mint new tokens over to TokenSale for testing within the same workspace.
+
+SUMMARY of Execution Steps:
+1. Deploy WhitelistRegistry (this is where whitelisted addresses will go). We will write a small program to add all our whitelisted customer addresses to this contract by calling addCustomerToWhitelist function as many times as needed until all addresses are loaded for the whitesale.
+2. Functions to call to initially configure this contract:  Initialize, AddAdmins, AddManager, addCustomerToWhitelist for all customers. I typically just add my contract owner as the Admin and as a Manager for my testing purposes.
 3. Note the address of this deployed contract.
-4. Deploy TokenSale (where sales will be performed). Customers send us ETH/DAI and we send the proportional amount of ATLC tokens in return.
-5. Initialize, AddAdmins, SetWallet.
-6. Fund the TokenSale contract with ATLC tokens
-7. Can pause, adjust multiplier/divisor as necessary for pricing, and set cooldown period for example to 60 minutes to force users to wait 1 hour in between Buy operations.
-8. Withdraw can be done by any admin and will go to their own msg.sender calling address wallet. Specific amounts or ALL ETH and/or ALL ATLC withdrawals are supported by separate functions.
-9. There are 2 separate Buy functions. 1 will auto-send the customer's ETH/DAI to an external wallet. The other will keep their ETH/DAI in the contract itself which will need extracted later manually by the Withdraw functions.
+4. Deploy TokenSale (where sales will be performed). Customers send us ETH/DAI and we send the proportional amount of ATLC tokens in return. We will have a dApp created on our website to allow the customers to buy tokens from this contract by using MetaMask.
+5. Functions to call to initially configure this contract:  Initialize, AddAdmins, SetWallet. I typically just add my contract owner as the Admin and as a Manager for my testing purposes.
+6. Fund the TokenSale contract with our tokens.  I used the MyNewMinter.sol which is just an ERC-20 implementation in this project to assist with spinning up some test tokens and minting them over to the TokenSale contract.
+7. In TokenSale , we can pause, adjust multiplier/divisor as necessary for pricing, and set cooldown period for example to 3 minutes to force users to wait 3 minutes between Buy operations. We can also set the maxBuyAmountPerSessionInDAI variable to enforce the maximum amount of our token that can be purchased for each session before having to wait for the cooldown period to finish.
+8. In TokenSale, Withdraw() can be done by any admin and will go to their own msg.sender calling address wallet. Specific amounts or ALL ETH and/or ALL our tokens withdrawals are supported by separate functions.
+9. There is a buyTokens() function which will be called from our dApp on our website using MetaMask. Based on the boolean flag called "useWallet", it will either keep the ETH/DAI in the contract or will transfer it automatically to our outside wallt. Any ETH/DAI stored in the contract can manually be extracted to an Admin by the Withdraw functions.
+
+
 
 *********************************************************************************************************
 
