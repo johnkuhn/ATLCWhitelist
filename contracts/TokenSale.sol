@@ -150,6 +150,16 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
         maxBuyAmountPerSessionInDAI = _maxBuyAmountPerSessionInDAI;
     }
 
+    // @dev Gets whether or not the buyer is within the cooldown period and therefore needs to wait to buy more tokens using buyTokens function.
+    /// @param someBuyer is any buyer trying to buy tokens from us.
+    /// @return whether or not the buyer is within the cooldown period and needs to wait (true), or whether they are good to buyTokens again (false).
+    function isWithinCooldown(address someBuyer) external view returns (bool){
+        if(block.timestamp >= lastPurchaseTimestamp[someBuyer] + coolDownPeriodInSeconds)
+            return false; //we're good to purchase again
+        else 
+            return true; //cooldown not over, user needs to wait
+    }
+
     /// @notice Allow buyers of our custom token in exchange for ETH/DAI.
     /// @dev Allow users to buy tokens in exchange for ETH/DAI that is passed to this function. Function looks to see if whitelisting is enabled, and if so,
     //      it validates against an external whitelisting contract to ensure the buyer exists. Otherwise, it uses the multiplier and divisor the owner or admin has set
@@ -184,9 +194,6 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
         uint256 ourBalance = tokenToSell.balanceOf(address(this));
         require(ourBalance >= amountToBuy, "Our token balance too low");
 
-        // Update the last purchase timestamp for the user for the cooldown period
-        lastPurchaseTimestamp[msg.sender] = block.timestamp;
-
         //see if we want to keep the ETH/DAI within the contract or send it to a specified external wallet
         if(useWallet && isValidWalletAddress(wallet))
         {
@@ -197,6 +204,9 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
         //send our token that they're buying to their address.
         (bool sent) = tokenToSell.transfer(msg.sender, amountToBuy);
         require(sent, "Failed to transfer tokens to customer");
+
+        // Update the last purchase timestamp for the user for the cooldown period
+        lastPurchaseTimestamp[msg.sender] = block.timestamp;
 
         // emit the event
         emit BuyTokens(msg.sender, msg.value, amountToBuy);
@@ -353,4 +363,3 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
     }
 
 }
-
