@@ -183,7 +183,7 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
         // Make sure the user has waited for the cooldown period
         require(block.timestamp >= lastPurchaseTimestamp[msg.sender] + coolDownPeriodInSeconds, "Cooldown period not over");
 
-        uint256 amountToBuy = calculateTokenAmountInWei(msg.value);
+        uint256 amountToBuy = calcEquivalentTokenAmountInWeiFormat(msg.value);
         require(amountToBuy > 0, "amountToBuy must be > 0");
 
         //ensure we're not trying to buy OVER the max amount of allowed Dai to spend per cool-down session without them having to wait to purchase more.
@@ -215,22 +215,30 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
     }
 
 
-    /// @dev Takes in WEI amount that the Buyer has specified that they want to spend. It then uses the multiplier and divisor the owner or admin has set
+    /// @dev Takes in WEI format amount of ETH/DAI that the Buyer has specified that they want to spend. It then uses the multiplier and divisor the owner or admin has set
     ///     to calculate amount of our token to give back in correspondence.
-    /// @param _weiAmount is the amount in WEI with 18 0's that the buyer is spending of their ETH/DAI.
+    /// @param _etherAmountInWeiFormat is the amount in WEI with 18 0's that the buyer is spending of their ETH/DAI.
     /// @return amount of our token in WEI format.
-    function calculateTokenAmountInWei(uint256 _weiAmount) public view returns (uint256) {
-        return _weiAmount.mul(tokensPerEthMultiplier).div(tokensPerEthDivisor);
+    function calcEquivalentTokenAmountInWeiFormat(uint256 _etherAmountInWeiFormat) public view returns (uint256) {
+        return _etherAmountInWeiFormat.mul(tokensPerEthMultiplier).div(tokensPerEthDivisor);
     }
 
-    /// @dev Takes in WEI amount that the Buyer has specified that they want to spend. It then uses the multiplier and divisor the owner or admin has set
+    /// @dev Takes in WEI format amount of ETH/DAI that the Buyer has specified that they want to spend. It then uses the multiplier and divisor the owner or admin has set
     ///     to calculate amount of our token to give back in correspondence.
-    /// @param _weiAmount is the amount in WEI with 18 0's that the buyer is spending of their ETH/DAI.
+    /// @param _etherAmountInWeiFormat is the amount in WEI with 18 0's that the buyer is spending of their ETH/DAI.
     /// @return amount of our token in ETH/DAI full token format.
-    function calculateTokenAmountInWeiWholeTokens(uint256 _weiAmount) public view returns (uint256) {
-        uint256 tokensInWei = _weiAmount.mul(tokensPerEthMultiplier).div(tokensPerEthDivisor);
+    function calcEquivalentTokenAmountInWholeTokens(uint256 _etherAmountInWeiFormat) public view returns (uint256) {
+        uint256 tokensInWei = _etherAmountInWeiFormat.mul(tokensPerEthMultiplier).div(tokensPerEthDivisor);
 
         return convertWeiToWholeTokens(tokensInWei);
+    }
+
+    /// @dev Takes in Whole Token format amount of ETH/DAI that the Buyer has specified that they want to spend. It then uses the multiplier and divisor the owner or admin has set
+    ///     to calculate amount of our token to give back in correspondence.
+    /// @param _etherAmountInWholeTokenFormat is the amount in WEI with 18 0's that the buyer is spending of their ETH/DAI.
+    /// @return amount of our token in ETH/DAI full token format.
+    function calcEquivalentTokenAmountInWholeTokensForWholeEther(uint256 _etherAmountInWholeTokenFormat) public view returns (uint256) {
+        return _etherAmountInWholeTokenFormat.mul(tokensPerEthMultiplier).div(tokensPerEthDivisor);
     }
 
     /// @dev Gets amount in WEI of our token that any wallet currently owns.

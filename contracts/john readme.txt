@@ -37,7 +37,7 @@ SUMMARY of Execution Steps:
 2. Functions to call to initially configure this contract:  Initialize, AddAdmins, AddManager, addCustomerToWhitelist for all customers. I typically just add my contract owner as the Admin and as a Manager for my testing purposes.
 3. Note the address of this deployed contract.
 4. Deploy TokenSale (where sales will be performed). Customers send us ETH/DAI and we send the proportional amount of ATLC tokens in return. We will have a dApp created on our website to allow the customers to buy tokens from this contract by using MetaMask.
-5. Functions to call to initially configure this contract:  Initialize, AddAdmins, SetWallet. I typically just add my contract owner as the Admin and as a Manager for my testing purposes.
+5. Functions to call to initially configure this contract:  Initialize, AddAdmins, SetWallet, setSendToWalletEnabled, setWhitelistEnabled (optional). I typically just add my contract owner as the Admin and as a Manager for my testing purposes.
 6. Fund the TokenSale contract with our tokens.  I used the MyNewMinter.sol which is just an ERC-20 implementation in this project to assist with spinning up some test tokens and minting them over to the TokenSale contract.
 7. In TokenSale , we can pause, adjust multiplier/divisor as necessary for pricing, and set cooldown period for example to 3 minutes to force users to wait 3 minutes between Buy operations. We can also set the maxBuyAmountPerSessionInDAI variable to enforce the maximum amount of our token that can be purchased for each session before having to wait for the cooldown period to finish.
 8. In TokenSale, Withdraw() can be done by any admin and will go to their own msg.sender calling address wallet. Specific amounts or ALL ETH and/or ALL our tokens withdrawals are supported by separate functions.
@@ -51,28 +51,36 @@ Typical testing scenario is as follows:
 
 Deploy WhitelistRegistry contract as the owner.  Get the address of it. This is where all our whitelisted customers will be stored.
 Address: xxx
-addAdmin: 0x643A87055213c3ce6d0BE9B1762A732e9E059536 (set the contract owner's account address as the admin)
+addAdmin: 0x832F90cf5374DC89D7f8d2d2ECb94337f54Dd537 (set the contract owner's account address as the admin)
 addCustomerToWhitelist: 0x643A87055213c3ce6d0BE9B1762A732e9E059536 
-addManager: 0x643A87055213c3ce6d0BE9B1762A732e9E059536   (set the contract owner's account address as the admin)
+addManager: 0x832F90cf5374DC89D7f8d2d2ECb94337f54Dd537   (set the contract owner's account address as the admin)
 Initialize (pass in Owner):  0x832F90cf5374DC89D7f8d2d2ECb94337f54Dd537 (SUCCESS)
 
-NOTE: If I switch my metamask browser tab account, it WILL automatically switch the Account that is selected in remix.
+NOTE: If I switch my metamask browser tab account using MetaMask browser Extension (only extension properly does this every time and not when opening it up in full browser view), it WILL automatically switch the Account that is selected in remix.
 
 *********************************************************************************************************
 
-Deployed MyNewMinter: (0xd9145CCE52D386f254917e481eB44e9943F39138)
-Deploy TokenSale: (0xddaAd340b0f1Ef65169Ae5E41A8b10776a75482d)
 
-Initialize: 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4, 0xd9145CCE52D386f254917e481eB44e9943F39138, 0xdD870fA1b7C4700F2BD7f44238821C26f7392148, false, 20, 1   (note, I grabbed the last account in the dropdown as the whitelist contract but passed in false so it won't get used anyway)
-AddAdmin: 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4(added the TokenSale contract owner as the admin)
-SetWallet: 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2(2nd Account in dropdown)  TODO: I can probably remove this because I'm not successfully able to send the Ether to an outside wallet when Buys are made.
+Deployed MyNewMinter using d537 owner: 
+TSTI token address: 0xB775bAf7BF85331f654a5904330E32a7c469a216 (Note: use ATLC production value here instead)
+Deployed new TokenSale using d537 owner: 0x9A1ce6cb8cB8d0213c5eD61C3628ef5d2c2a1079 (WHERE TO BUY FROM)
+MyNewMinter - Minted 5000 tokens to address of TokenSale contract: 0x9A1ce6cb8cB8d0213c5eD61C3628ef5d2c2a1079,  5000000000000000000000
 
-I minted 5000 tokens from MyNewMinter over to the TokenSale contract: 0xddaAd340b0f1Ef65169Ae5E41A8b10776a75482d, 5000000000000000000000
+Note: Pass in my Production owner wallet, address of ATLC Token as 2nd parameter, use WhitelistRegistry contract address in place of 3rd parameter below, whether or not to default to using whitelist, then conversion metrics in last parameters.
+Initialize: 0x832F90cf5374DC89D7f8d2d2ECb94337f54Dd537, 0xB775bAf7BF85331f654a5904330E32a7c469a216, 0xD2a8eeecb24857d1289f0f42c55307Ef190762C4, false, 20, 1
+AddAdmin: 0x832F90cf5374DC89D7f8d2d2ECb94337f54Dd537 (added the tokensale contract owner as the admin)
+SetWallet: 0xe8CE65fCe771bDe34fbB2Df57C3Cb15105DB8e75  (Test Account 2)
+setSendToWalletEnabled : true
+setWhitelistEnabled: false (I turned this off to rule out any issues with the old whitelistregistry I deployed a couple days ago)
 
+Ensure we have some tokens to sell and the TokenSale contract has been funded:
 getContractBalance: 5000000000000000000000
 getContractBalanceWholeTokens: 5000  
 
 buyTokens as 3rd account in dropdown: 0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db
 I selected 1 Ether at the top of Remix.
-Clicked buyTokens6.
+Clicked buyTokens button.
+*************************************************************************************************************
+
+
 
