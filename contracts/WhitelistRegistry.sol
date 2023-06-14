@@ -1,12 +1,4 @@
-// SPDX-License-Identifier: Galt Project Society Construction and Terraforming Company
-/*
- * Copyright ©️ 2018-2020 Galt•Project Society Construction and Terraforming Company
- * (Founded by [Nikolai Popeka](https://github.com/npopeka)
- *
- * Copyright ©️ 2018-2020 Galt•Core Blockchain Company
- * (Founded by [Nikolai Popeka](https://github.com/npopeka) by
- * [Basic Agreement](ipfs/QmaCiXUmSrP16Gz8Jdzq6AJESY1EAANmmwha15uR3c1bsS)).
- */
+// SPDX-License-Identifier: KuhnSoft LLC
 
 pragma solidity >=0.6.0 <0.9.0;
 //pragma solidity ^0.5.13;
@@ -25,12 +17,27 @@ contract WhitelistRegistry is Managed, ITokenSaleRegistry {
         Ownable.initialize(_owner);
     }
 
-    function addCustomerToWhiteList(address _customer) external onlyAdminOrManager {
-        customersWhiteList.add(_customer);
-        emit AddWhitelistedCustomer(_customer, msg.sender);
+    function addCustomerToWhiteList(address _customer) external onlyAdminOrManager payable {
+        
+        //ensure wallet address being set is valid
+        bool isValid = isValidWalletAddress(_customer);
+        require(isValid, "Invalid wallet address.");
+
+        //ensure customer is not already in the list before adding them
+        if(!customersWhiteList.contains(_customer))
+        {
+            //add them
+            customersWhiteList.add(_customer);
+            emit AddWhitelistedCustomer(_customer, msg.sender);
+        }
     }
 
-    function removeCustomerFromWhiteList(address _customer) external onlyAdminOrManager {
+    function removeCustomerFromWhiteList(address _customer) external onlyAdminOrManager payable {
+
+        //ensure wallet address being set is valid
+        bool isValid = isValidWalletAddress(_customer);
+        require(isValid, "Invalid wallet address.");
+
         customersWhiteList.remove(_customer);
         emit RemoveWhitelistedCustomer(_customer, msg.sender);
     }
@@ -45,7 +52,7 @@ contract WhitelistRegistry is Managed, ITokenSaleRegistry {
 
     function getCustomersWhiteList() external view returns (address[] memory) {
       
-        //JGK 5/25/23 - adjusted below code because .enumerate was throwing a compiler error.
+        //JGK 5/25/23 - adjusted below code because .enumerate was throwing a compiler error. Commented out below line and replaced with loop.
         //return customersWhiteList.enumerate();
 
         uint256 length = customersWhiteList.length();
@@ -60,5 +67,17 @@ contract WhitelistRegistry is Managed, ITokenSaleRegistry {
 
     function getCustomersWhiteListCount() external view returns (uint256) {
         return customersWhiteList.length();
+    }
+
+    /// @dev The isValidWalletAddress checks to make sure the address is a valid wallet address.
+    /// @param walletToCheck The wallet address to check whether or not it is valid.
+    /// @return true or false for whether or not the passed in wallet address is valid. 
+    function isValidWalletAddress(address walletToCheck) private pure returns (bool){
+        if(walletToCheck == 0x0000000000000000000000000000000000000000 ||
+            walletToCheck == address(0) || 
+             walletToCheck == address(0x0)) 
+            return false;
+         else 
+            return true;
     }
 }

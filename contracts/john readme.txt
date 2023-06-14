@@ -51,10 +51,10 @@ Typical testing scenario is as follows:
 
 Deploy WhitelistRegistry contract as the owner.  Get the address of it. This is where all our whitelisted customers will be stored.
 Address: xxx
-addAdmin: 0x832F90cf5374DC89D7f8d2d2ECb94337f54Dd537 (set the contract owner's account address as the admin)
-addCustomerToWhitelist: 0x643A87055213c3ce6d0BE9B1762A732e9E059536 
-addManager: 0x832F90cf5374DC89D7f8d2d2ECb94337f54Dd537   (set the contract owner's account address as the admin)
 Initialize (pass in Owner):  0x832F90cf5374DC89D7f8d2d2ECb94337f54Dd537 (SUCCESS)
+addAdmin: 0x832F90cf5374DC89D7f8d2d2ECb94337f54Dd537 (set the contract owner's account address as the admin)
+addManager: 0x832F90cf5374DC89D7f8d2d2ECb94337f54Dd537   (set the contract owner's account address as the admin)
+addCustomerToWhitelist: 0x643A87055213c3ce6d0BE9B1762A732e9E059536 ??? Do this from my AddToWhitelist.aspx page. 
 
 NOTE: If I switch my metamask browser tab account using MetaMask browser Extension (only extension properly does this every time and not when opening it up in full browser view), it WILL automatically switch the Account that is selected in remix.
 

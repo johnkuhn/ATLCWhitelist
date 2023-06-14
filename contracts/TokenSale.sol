@@ -1,12 +1,4 @@
-// SPDX-License-Identifier: Galt Project Society Construction and Terraforming Company
-/*
- * Copyright ©️ 2018-2020 Galt•Project Society Construction and Terraforming Company
- * (Founded by [Nikolai Popeka](https://github.com/npopeka)
- *
- * Copyright ©️ 2018-2020 Galt•Core Blockchain Company
- * (Founded by [Nikolai Popeka](https://github.com/npopeka) by
- * [Basic Agreement](ipfs/QmaCiXUmSrP16Gz8Jdzq6AJESY1EAANmmwha15uR3c1bsS)).
- */
+// SPDX-License-Identifier: KuhnSoft LLC
 
 pragma solidity >=0.5.0 <0.9.0;
 //pragma solidity ^0.5.13;
@@ -24,6 +16,8 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
 
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
+
+    address contractDeployer;
 
     IERC20 public tokenToSell;
     ITokenSaleRegistry public tokenSaleWhitelistRegistry;
@@ -45,8 +39,13 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
 
     //allowed DAI purchase amount per session
     uint256 public maxBuyAmountPerSessionInDAI = 7500;
+    uint256 public maxBuyAmountPerSessionInWei;
 
     constructor() {
+        contractDeployer = msg.sender;
+
+        //initialize to Wei value equivalent so that we can use the Wei value in buyTokens and save on gas instead of doing the conversion in there on every purchase.
+        maxBuyAmountPerSessionInWei = maxBuyAmountPerSessionInDAI * (10**18);
     }
     
 
@@ -59,7 +58,11 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
     ///@param _tokensPerEthMultiplier is the multiplier. 20 would mean 1:20. 1 ETH/DAI would allow them to purchase 20 tokens.
     ///@param _tokensPerEthDivisor is the divisor. Typically we would send a 1 in here unless the cost of our token ends up being priced higher than the price of an ETH/DAI.
     ///     If we pass in 20 as the divisor then 1 ETH will send buyer .05 of our tokens or 20:1 ration.
-    function initialize(address _owner, address _tokenToSell, address _tokenSaleRegistry, bool _whitelistEnabled, uint256 _tokensPerEthMultiplier, uint256 _tokensPerEthDivisor) public initializer {
+    function initialize(address _owner, address _tokenToSell, address _tokenSaleRegistry, bool _whitelistEnabled, uint256 _tokensPerEthMultiplier, uint256 _tokensPerEthDivisor) external initializer {
+        
+        //in between contract deployment and initialize, ensure only the contract deployer (myOwner) can call this function.
+        require(contractDeployer == msg.sender, "Only owner may initialize.");
+
         Ownable.initialize(_owner);
         tokenToSell = IERC20(_tokenToSell);
         tokenSaleWhitelistRegistry = ITokenSaleRegistry(_tokenSaleRegistry);
@@ -84,7 +87,7 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
     ///@dev allows admin to specify the lookup to an outside TokenSaleRegistry.sol deployed contract where whitelisted addresses will be held.
     ///@param _tokenSaleWhitelistRegistry - the contract for the TokenSaleRegistry
     ///@param _whitelistEnabled - whether we want whitelisting validation to take place during the Buy operations.
-    function setTokenSaleWhitelistRegistry(ITokenSaleRegistry _tokenSaleWhitelistRegistry, bool _whitelistEnabled) external onlyAdmin {
+    function setTokenSaleWhitelistRegistry(ITokenSaleRegistry _tokenSaleWhitelistRegistry, bool _whitelistEnabled) external onlyAdmin payable {
         tokenSaleWhitelistRegistry = _tokenSaleWhitelistRegistry;
         whitelistEnabled = _whitelistEnabled;
         emit SetTokenSaleRegistry(address(_tokenSaleWhitelistRegistry), msg.sender, _whitelistEnabled);
@@ -92,13 +95,13 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
 
     ///@dev allows an admin to turn whitelist validation on/off
     ///@param _whitelistEnabled whether or not admin wants to turn whitelist lookup on/off
-    function setWhitelistEnabled(bool _whitelistEnabled) external onlyAdmin {
+    function setWhitelistEnabled(bool _whitelistEnabled) external onlyAdmin payable {
         whitelistEnabled = _whitelistEnabled;
     }
 
     ///@dev allows admin to specify a wallet where all ETH/DAI used to purchase our token will be sent.
     ///@param _wallet is the wallet address where calls to buyToken may be sent vs being stored in this contract until manual withdraw takes place by admin.
-    function setWallet(address _wallet) external onlyAdmin {
+    function setWallet(address _wallet) external onlyAdmin payable {
 
         //ensure wallet address being set is valid
         bool isValid = isValidWalletAddress(_wallet);
@@ -111,7 +114,7 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
     ///@dev allows an admin to turn on/off whether ETH/DAI is auto-sent to an outside wallet vs. stored in this contract
     //   during buyToken operations.
     ///@param _useWallet whether or not admin wants to have the buyer's ETH/DAI sent to a specified outside wallet vs manually withdrawn later.
-    function setSendToWalletEnabled(bool _useWallet) external onlyAdmin {
+    function setSendToWalletEnabled(bool _useWallet) external onlyAdmin payable {
 
         //ensure that a wallet has been specified already if admin is saying to use the wallet and auto-send
         //ETH/DAI from the buy to the outside wallet during BuyToken operations. 
@@ -128,7 +131,7 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
     ///     to the Buy operation.
     ///@param _tokensPerEthMultiplier is the multiplier. 20 would mean 1:20. 1 ETH/DAI would allow them to purchase 20 tokens.
     ///@param _tokensPerEthDivisor is the divisor. Typically we would send a 1 in here unless the cost of our token ends up being priced higher than the price of an ETH/DAI.
-    function setTokenMath(uint256 _tokensPerEthMultiplier, uint256 _tokensPerEthDivisor) external onlyAdmin {
+    function setTokenMath(uint256 _tokensPerEthMultiplier, uint256 _tokensPerEthDivisor) external onlyAdmin payable {
         require(_tokensPerEthMultiplier > 0 && _tokensPerEthDivisor > 0, "WhitelistedTokenSale: rates must be > 0");
         
         tokensPerEthMultiplier = _tokensPerEthMultiplier;
@@ -137,7 +140,7 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
 
     ///@dev allows admin to specify how long customer must wait (in minutes) before executing a Buy operation again. Internally this is converted to seconds.
     ///@param _coolDownPeriodInMinutes time in minutes customer must wait before buying again.
-    function setCoolDownPeriodInMinutes(uint256 _coolDownPeriodInMinutes) external onlyAdmin {
+    function setCoolDownPeriodInMinutes(uint256 _coolDownPeriodInMinutes) external onlyAdmin payable {
 
         coolDownPeriodInSeconds = _coolDownPeriodInMinutes * 60;
     }
@@ -145,9 +148,13 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
     ///@dev allows admin to specify the max amount of Dai (in whole tokens) a customer is allowed to perform on a single buyToken operation before needing to wait for
     ///     cool-down period to expire.
     ///@param _maxBuyAmountPerSessionInDAI in whole tokens. This will be converted to Wei to compare during the buyToken operation.
-    function setMaxBuyAmountPerSessionInDAIWholeTokens(uint256 _maxBuyAmountPerSessionInDAI) external onlyAdmin {
+    function setMaxBuyAmountPerSessionInDAIWholeTokens(uint256 _maxBuyAmountPerSessionInDAI) external onlyAdmin payable {
 
+        //reset the value in DAI to 1:1 from what the admin is passing in.
         maxBuyAmountPerSessionInDAI = _maxBuyAmountPerSessionInDAI;
+
+        //recalculate the corresponding value in Wei.
+        maxBuyAmountPerSessionInWei = maxBuyAmountPerSessionInDAI * (10**18);
     }
 
     // @dev Gets whether or not the buyer is within the cooldown period and therefore needs to wait to buy more tokens using buyTokens function.
@@ -177,18 +184,21 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
         require(msg.value > 0, "Send ETH to buy some tokens");
 
         if (whitelistEnabled) {
-          tokenSaleWhitelistRegistry.validateWhitelistedCustomer(msg.sender);
+            tokenSaleWhitelistRegistry.validateWhitelistedCustomer(msg.sender);
         }
 
         // Make sure the user has waited for the cooldown period
         require(block.timestamp >= lastPurchaseTimestamp[msg.sender] + coolDownPeriodInSeconds, "Cooldown period not over");
+
+        //ensure values exist for the multiplier and divisor
+        require(tokensPerEthMultiplier > 0 && tokensPerEthDivisor > 0, "Token rates must be > 0");
 
         uint256 amountToBuy = calcEquivalentTokenAmountInWeiFormat(msg.value);
         require(amountToBuy > 0, "amountToBuy must be > 0");
 
         //ensure we're not trying to buy OVER the max amount of allowed Dai to spend per cool-down session without them having to wait to purchase more.
         uint256 daiAmountInWei = msg.value;
-        require(daiAmountInWei <= maxBuyAmountPerSessionInDAI * (10**18), "Over Maximum DAI purchase amount.");
+        require(daiAmountInWei <= maxBuyAmountPerSessionInWei, "Over Maximum DAI purchase amount.");
 
         // check if our balance of tokenToSell >= the amount being purchased right now. 
         uint256 ourBalance = tokenToSell.balanceOf(address(this));
@@ -227,7 +237,7 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
     ///     to calculate amount of our token to give back in correspondence.
     /// @param _etherAmountInWeiFormat is the amount in WEI with 18 0's that the buyer is spending of their ETH/DAI.
     /// @return amount of our token in ETH/DAI full token format.
-    function calcEquivalentTokenAmountInWholeTokens(uint256 _etherAmountInWeiFormat) public view returns (uint256) {
+    function calcEquivalentTokenAmountInWholeTokens(uint256 _etherAmountInWeiFormat) external view returns (uint256) {
         uint256 tokensInWei = _etherAmountInWeiFormat.mul(tokensPerEthMultiplier).div(tokensPerEthDivisor);
 
         return convertWeiToWholeTokens(tokensInWei);
@@ -237,14 +247,14 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
     ///     to calculate amount of our token to give back in correspondence.
     /// @param _etherAmountInWholeTokenFormat is the amount in WEI with 18 0's that the buyer is spending of their ETH/DAI.
     /// @return amount of our token in ETH/DAI full token format.
-    function calcEquivalentTokenAmountInWholeTokensForWholeEther(uint256 _etherAmountInWholeTokenFormat) public view returns (uint256) {
+    function calcEquivalentTokenAmountInWholeTokensForWholeEther(uint256 _etherAmountInWholeTokenFormat) external view returns (uint256) {
         return _etherAmountInWholeTokenFormat.mul(tokensPerEthMultiplier).div(tokensPerEthDivisor);
     }
 
     /// @dev Gets amount in WEI of our token that any wallet currently owns.
     /// @param someOwner is any wallet address that owns some of our token.
     /// @return the amount in WEI of their balance.
-    function getTokenBalanceAnyWallet(address someOwner) public view onlyAdmin returns(uint256){
+    function getTokenBalanceAnyWallet(address someOwner) external view returns(uint256){
         return IERC20(tokenToSell).balanceOf(someOwner); 
     }
 
@@ -252,7 +262,7 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
     ///    NOTE: THIS IS VERY IMPORT BECAUSE IT'S GOING OUT TO THE LEDGE ESSENTIALLY OF THE MAIN TOKEN CONTRACT AND GETTING THE BALANCE OF THE ADDRESS 
     ///    OF THE tokenToSell ITSELF.
     /// @return Full contract balance in WEI format (with 18 0's after it). 
-    function getContractTokenBalance() public view onlyAdmin returns(uint256){
+    function getContractTokenBalance() public view returns(uint256){
         return IERC20(tokenToSell).balanceOf(address(this)); 
     }
 
@@ -260,7 +270,7 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
     ///    NOTE: THIS IS VERY IMPORT BECAUSE IT'S GOING OUT TO THE LEDGE ESSENTIALLY OF THE MAIN TOKEN CONTRACT AND GETTING THE BALANCE OF THE ADDRESS 
     ///    OF THE tokenToSell ITSELF.
     /// @return Full contract balance in ETH (whole tokens WITHOUT 18 0's after it). 
-    function getContractTokenBalanceWholeTokens() public view onlyAdmin returns(uint256){
+    function getContractTokenBalanceWholeTokens() external view returns(uint256){
         uint256 fullBalance = getContractTokenBalance(); 
 
         if(fullBalance > 0)
@@ -276,14 +286,14 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
     /// @dev View-only function to return this contract's Ether balance in WEI. As Buys are made, this contract receives Ether and sends out our custom token
     ///    based on the math conversion rate. 
     /// @return This contract's default Ether balance in WEI (with 18 0's after it). 
-    function getContractEtherBalance() public view onlyAdmin returns(uint256){
+    function getContractEtherBalance() public view returns(uint256){
         return address(this).balance;
     }
 
     /// @dev View-only function to return this contract's Ether balance in WEI. As Buys are made, this contract receives Ether and sends out our custom token
     ///    based on the math conversion rate. 
     /// @return This contract's default Ether balance in ETH format   
-    function getContractEtherBalanceWholeTokens() public view onlyAdmin returns(uint256){
+    function getContractEtherBalanceWholeTokens() external view returns(uint256){
         uint256 fullBalance = getContractEtherBalance(); 
 
         if(fullBalance > 0)
@@ -298,7 +308,7 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
 
     /// @notice Allow the owner of the contract to withdraw our custom token.
     /// @dev Whichever admin calls this function will receive all custom tokens being held in this contract.
-    function withdrawAllTokens() public onlyAdmin {
+    function withdrawAllTokens() external onlyAdmin payable {
         uint256 thisBalance = tokenToSell.balanceOf(address(this));
         require(thisBalance > 0, "No contract balance of our token to withdraw");
 
@@ -309,7 +319,7 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
     /// @notice Allow the owner of the contract to withdraw our custom token.
     /// @param amount Amount of the custom token requesting to be sent to admin.
     /// @dev Whichever admin calls this function will receive the custom tokens being held in this contract.
-    function withdrawTokens(uint amount) public onlyAdmin {
+    function withdrawTokens(uint amount) external onlyAdmin payable {
         uint256 thisBalance = tokenToSell.balanceOf(address(this)); 
         require(thisBalance > 0, "No contract balance of our token to withdraw");
 
@@ -322,12 +332,9 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
 
     /// @notice Allow the owner of the contract to withdraw ETH/DAI
     /// @dev Whichever admin calls this function will receive all the ETH/DAI being held in this contract.
-    function withdrawAllEther() public onlyAdmin {
+    function withdrawAllEther() external onlyAdmin payable {
         uint256 thisBalance = address(this).balance;
         require(thisBalance > 0, "No contract balance to withdraw");
-
-        //(bool sent,) = msg.sender.call{value: address(this).balance}("");
-        //require(sent, "Failed to send contract balance back to the owner");
 
         payable(msg.sender).transfer(address(this).balance);
 
@@ -337,13 +344,10 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
     /// @notice Allow the owner of the contract to withdraw ETH/DAI
     /// @param amount Amount of the ETH/DAI requesting to be sent to admin.
     /// @dev Whichever admin calls this function will receive the ETH/DAI
-    function withdrawEther(uint amount) public onlyAdmin {
+    function withdrawEther(uint amount) external onlyAdmin payable {
         uint256 thisBalance = address(this).balance;
         require(thisBalance > 0, "No contract balance to withdraw");
         require(thisBalance >= amount, "Contract does not hold amount requested");
-
-        //(bool sent,) = msg.sender.call{value: amount}("");
-        //require(sent, "Failed to send contract balance back to the owner");
 
         payable(msg.sender).transfer(amount);
     }
@@ -351,14 +355,12 @@ contract TokenSale is Administrated, IWhitelistedTokenSale, Pausable {
     /// @dev Utilizes safemath function to convert wei to whole ETH/DAI amount.
     /// @param amountInWei The full amount with 18 0's in it.
     /// @return Full amount converted to whole ETH/DAI.
-    //function convertWeiToWholeTokens(uint256 amountInWei) internal pure returns (uint256) {
-    function convertWeiToWholeTokens(uint256 amountInWei) public pure returns (uint256) {
+    function convertWeiToWholeTokens(uint256 amountInWei) internal pure returns (uint256) {
         uint256 amountInWholeTokens = amountInWei.div(1 ether);
         return amountInWholeTokens;
     }
 
-    /// @dev The isValidWalletAddress checks to make sure the address has not be cleared/deleted by having a wallet voted out. When a wallet is voted out, the mapping
-    ///    element in walletAddresses will still exist but will have been set to the below hex 0 value.
+    /// @dev The isValidWalletAddress checks to make sure the address is a valid wallet address.
     /// @param walletToCheck The wallet address to check whether or not it is valid.
     /// @return true or false for whether or not the passed in wallet address is valid. 
     function isValidWalletAddress(address walletToCheck) private pure returns (bool){
